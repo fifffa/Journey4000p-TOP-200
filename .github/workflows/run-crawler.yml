@@ -1,0 +1,28 @@
+name: Run Playwright Crawler Daily
+
+on:
+  schedule:
+    - cron: "30 14 * * *" # 매일 14:30 UTC (KST 23:30)
+  workflow_dispatch: # 수동 실행도 가능하게
+
+jobs:
+  run-crawler:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npx playwright install --with-deps
+
+      - name: Run crawler
+        env:
+          MONGODB_URL: ${{ secrets.MONGODB_URL }}
+        run: node crawler.js
