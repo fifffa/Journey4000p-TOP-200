@@ -7,6 +7,7 @@ import PlayerReports from "./models/playerReports.js";
 import dbConnect from "./dbConnect.js";
 import HanTools from "hangul-tools";
 import axios from "axios";
+import playerRestrictions from "./seed/playerRestrictions.json" assert { type: "json" };
 
 let browser;
 
@@ -82,48 +83,55 @@ async function playerPriceValue(data, Grade) {
     context = await browser.newContext();
     const results = [];
 
-    for (let grade of grades) {
-      for (const player of data) {
-        const { id } = player;
-        const url = `https://fconline.nexon.com/DataCenter/PlayerInfo?spid=${id}&n1Strong=${grade}`;
-        const page = await context.newPage();
-        await blockUnwantedResources(page);
+    for (const player of data) {
+      if (playerRestrictions.includes(Number(player.id))) {
+        continue;
+      } else {
+        for (let grade of grades) {
+          const { id } = player;
+          const url = `https://fconline.nexon.com/DataCenter/PlayerInfo?spid=${id}&n1Strong=${grade}`;
+          const page = await context.newPage();
+          await blockUnwantedResources(page);
 
-        try {
-          console.log(`🌍 Navigating to ${url}`);
-          await page.goto(url, { waitUntil: "domcontentloaded" });
+          try {
+            console.log(`🌍 Navigating to ${url}`);
+            await page.goto(url, { waitUntil: "domcontentloaded" });
 
-          await page.waitForFunction(
-            () => {
-              const element = document.querySelector(".txt strong");
-              return (
-                element &&
-                element.getAttribute("title") &&
-                element.getAttribute("title").trim() !== ""
-              );
-            },
-            { timeout: 80000 }
-          );
+            await page.waitForFunction(
+              () => {
+                const element = document.querySelector(".txt strong");
+                return (
+                  element &&
+                  element.getAttribute("title") &&
+                  element.getAttribute("title").trim() !== ""
+                );
+              },
+              { timeout: 80000 }
+            );
 
-          let datacenterTitle = await page.evaluate(() => {
-            const element = document.querySelector(".txt strong").textContent;
-            return element;
-          });
+            let datacenterTitle = await page.evaluate(() => {
+              const element = document.querySelector(".txt strong").textContent;
+              return element;
+            });
 
-          results.push({
-            id: id,
-            prices: { grade, price: datacenterTitle },
-          });
+            results.push({
+              id: id,
+              prices: { grade, price: datacenterTitle },
+            });
 
-          console.log(`✔ ID ${id} / Grade ${grade} → ${datacenterTitle}`);
-        } catch (err) {
-          console.error(`❌ Error for ID ${id}, Grade ${grade}:`, err.message);
-          results.push({
-            id: id,
-            prices: { grade, price: "Error" },
-          });
-        } finally {
-          await page.close();
+            console.log(`✔ ID ${id} / Grade ${grade} → ${datacenterTitle}`);
+          } catch (err) {
+            console.error(
+              `❌ Error for ID ${id}, Grade ${grade}:`,
+              err.message
+            );
+            results.push({
+              id: id,
+              prices: { grade, price: "Error" },
+            });
+          } finally {
+            await page.close();
+          }
         }
       }
     }
