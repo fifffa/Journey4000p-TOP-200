@@ -22,6 +22,10 @@ jobs:
           npm install
           npx playwright install --with-deps
 
+      - name: Ensure Playwright Browsers Installed
+        run: |
+          npx playwright install chromium
+
       - name: Run crawler
         env:
           MONGODB_URL: ${{ secrets.MONGODB_URL }}
